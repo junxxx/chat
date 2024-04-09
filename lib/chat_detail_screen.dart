@@ -11,7 +11,7 @@ class ChatDetailScreen extends StatefulWidget {
 class ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   late WebSocketChannel _channel;
-  final List<String> _messages = [];
+  final List<Message> _messages = [];
 
   @override
   void initState() {
@@ -21,7 +21,7 @@ class ChatDetailScreenState extends State<ChatDetailScreen> {
     _channel = WebSocketChannel.connect(wsUrl);
     _channel.stream.listen((message) {
       setState(() {
-        _messages.add(message);
+        _messages.add(Message(text: message, isSent: false));
       });
     });
   }
@@ -38,7 +38,7 @@ class ChatDetailScreenState extends State<ChatDetailScreen> {
             child: ListView.builder(
               itemCount: _messages.length,
               itemBuilder: (context, index) {
-                return MessageWidget(messageText: _messages[index]);
+                return MessageWidget(message: _messages[index]);
               },
             ),
           ),
@@ -72,7 +72,9 @@ class ChatDetailScreenState extends State<ChatDetailScreen> {
   void _sendMessage(String message) {
     if (message.isNotEmpty) {
       _channel.sink.add(message);
+      _messages.add(Message(text: message, isSent: true));
       _messageController.clear();
+      setState(() {});
     }
   }
 
@@ -83,18 +85,35 @@ class ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 }
 
-class MessageWidget extends StatelessWidget {
-  final String messageText;
+class Message {
+  final String text;
+  final bool isSent;
 
-  const MessageWidget({required this.messageText, super.key});
+  Message({required this.text, required this.isSent});
+}
+
+class MessageWidget extends StatelessWidget {
+  final Message message;
+
+  const MessageWidget({required this.message, super.key});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      child: Text(
-        messageText,
-        style: const TextStyle(fontSize: 16.0),
+      child: Align(
+        alignment: message.isSent ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: message.isSent ? Colors.blue : Colors.grey, 
+            borderRadius: BorderRadius.circular(8.0)
+          ),
+          child: Text(
+            message.text,
+            style: const TextStyle(fontSize: 16.0, color: Colors.white),
+          ),
+        ),
       ),
     );
   }
