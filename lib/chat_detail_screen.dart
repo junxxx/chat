@@ -1,7 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
-class ChatDetailScreen extends StatelessWidget {
+class ChatDetailScreen extends StatefulWidget {
   const ChatDetailScreen({super.key});
+
+  @override
+  ChatDetailScreenState createState() => ChatDetailScreenState();
+}
+
+class ChatDetailScreenState extends State<ChatDetailScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  late WebSocketChannel _channel;
+  final List<String> _messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Establish WebSocket connection
+    final wsUrl = Uri.parse('ws://127.0.0.1:8080/ws');
+    _channel = WebSocketChannel.connect(wsUrl);
+    _channel.stream.listen((message) {
+      setState(() {
+        _messages.add(message);
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -11,21 +35,21 @@ class ChatDetailScreen extends StatelessWidget {
       body: Column(
         children: <Widget>[
           Expanded(
-            child: ListView(
-              children: const <Widget>[
-                MessageWidget(messageText: 'Hello there!'),
-                MessageWidget(messageText: 'How are you?'),
-                MessageWidget(messageText: 'I am fine, thank you!'),
-              ],
+            child: ListView.builder(
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                return MessageWidget(messageText: _messages[index]);
+              },
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
               children: <Widget>[
-                const Expanded(
+                Expanded(
                   child: TextField(
-                    decoration: InputDecoration(
+                    controller: _messageController,
+                    decoration: const InputDecoration(
                       hintText: 'Type your message...',
                     ),
                   ),
@@ -33,7 +57,7 @@ class ChatDetailScreen extends StatelessWidget {
                 const SizedBox(width: 8.0),
                 FloatingActionButton(
                   onPressed: () {
-                    // Add your code to handle sending message
+                    _sendMessage(_messageController.text);
                   },
                   child: const Icon(Icons.send),
                 ),
@@ -43,6 +67,19 @@ class ChatDetailScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _sendMessage(String message) {
+    if (message.isNotEmpty) {
+      _channel.sink.add(message);
+      _messageController.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _channel.sink.close();
+    super.dispose();
   }
 }
 
@@ -62,3 +99,4 @@ class MessageWidget extends StatelessWidget {
     );
   }
 }
+
